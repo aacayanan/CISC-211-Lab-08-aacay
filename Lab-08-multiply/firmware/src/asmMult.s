@@ -76,6 +76,166 @@ asmMult:
     
     /*** STUDENTS: Place your code BELOW this line!!! **************/
     
+    /* initialize all variables to 0 */
+    mov r4, #0
+    ldr r5, =a_Multiplicand
+    str r4, [r5]
+    ldr r5, =b_Multiplier
+    str r4, [r5]
+    ldr r5, =rng_Error
+    str r4, [r5]
+    ldr r5, =a_Sign
+    str r4, [r5]
+    ldr r5, =b_Sign
+    str r4, [r5]
+    ldr r5, =prod_Is_Neg
+    str r4, [r5]
+    ldr r5, =a_Abs
+    str r4, [r5]
+    ldr r5, =b_Abs
+    str r4, [r5]
+    ldr r5, =init_Product
+    str r4, [r5]
+    ldr r5, =final_Product
+    str r4, [r5]
+    
+    /* copy r0 to a_Multiplicand, r1 to b_Multiplier */
+    ldr r4, =a_Multiplicand
+    str r0, [r4]
+    ldr r4, =b_Multiplier
+    str r1, [r4]
+    
+    /* check if r0 or r1 exceeds 16bit signed range */
+    // check for r0
+    mov r5, r0
+    mov r6, r1
+    asr r5, r5, #15
+    cmp r5, #0
+    beq a_in_range
+    cmp r5, #0xFFFFFFFF
+    beq a_in_range
+    
+    b out_of_range
+    
+a_in_range:
+    // now for r1, checked if 'a' is in range
+    asr r6, r6, #15
+    cmp r6, #0
+    beq in_range
+    cmp r6, #0xFFFFFFFF
+    beq in_range
+
+    b out_of_range
+    
+in_range:   // checked that both 'a' and 'b' are in range
+    /* store sign bits in respective location */
+    // a_Multiplicand, a_Sign
+    mov r7, #1
+    ands r7, r5, r7
+    ldr r8, =a_Sign
+    str r7, [r8]
+    
+    // b_Multiplier, b_Sign
+    mov r7, #1
+    ands r7, r6, r7
+    ldr r8, =b_Sign
+    str r7, [r8]
+    
+    /* decide final output sign */
+    ldr r5, =a_Sign
+    ldr r5, [r5]
+    ldr r6, =b_Sign
+    ldr r6, [r6]
+    eor r7, r5, r6
+    ldr r8, =prod_Is_Neg
+    str r7, [r8]
+    
+    // if either r0 or r1 is zero, then product is positive
+    mov r5, r0
+    cmp r5, #0
+    beq set_to_pos
+    mov r6, r1
+    cmp r6, #0
+    beq set_to_pos
+    b end_zero_check
+    
+end_zero_check:
+    /* store absolute values in respective locations */
+    // start with r0
+    mov r5, r0
+    cmp r5, #0
+    rsblt r5, r5, #0
+    ldr r4, =a_Abs
+    str r5, [r4]
+    
+    // now for r1
+    mov r5, r1
+    cmp r5, #0
+    rsblt r5, r5, #0
+    ldr r4, =b_Abs
+    str r5, [r4]
+    
+    /* multiply using shift-and-add */
+    ldr r4, =a_Abs
+    ldr r4, [r4]
+    ldr r5, =b_Abs
+    ldr r5, [r5]
+    mov r8, #0
+    
+    mov r6, #0
+    mov r7, #1
+    
+iterate:    // procedes to iterate if multiplier is not zero
+    cmp r5, #0
+    beq store
+    
+    ands r9, r5, r7
+    bne adding
+    
+add_ret:    // does appropriate shifts
+    lsr r5, r5, #1
+    lsl r4, r4, #1
+    b iterate
+    
+adding:	    // responsible for adding to the product result
+    add r8, r8, r4
+    b add_ret
+    
+store:	    // stores the product
+    ldr r9, =init_Product
+    str r8, [r9]
+    ldr r4, =prod_Is_Neg
+    ldr r4, [r4]
+    cmp r4, #1	    // checks if final result should be negative
+    beq final_prod_neg
+    ldr r5, =final_Product
+    str r8, [r5]
+    /* copy final result to r0 */
+    mov r0, r8
+    
+    b done
+    
+final_prod_neg:	    // if final result is negative
+    rsb r8, r8, #0
+    ldr r5, =final_Product
+    str r8, [r5]
+    /* copy final result to r0 */
+    mov r0, r8
+    
+    b done
+    
+set_to_pos:	// if either r0 or r1 is zero, then product is positive
+    mov r4, #0
+    str r4, [r8]
+    b end_zero_check
+
+out_of_range:
+    /* if out of range, set rng_Error to 1, r0 to 0, and exit */
+    mov r4, #1
+    ldr r5, =rng_Error
+    str r4, [r5]
+    b done
+    
     
     /*** STUDENTS: Place your code ABOVE this line!!! **************/
 
